@@ -455,6 +455,7 @@ class SidenoteFolder extends vscode.TreeItem {
     this.tooltip = `${label}`;
     this.description = "";
     this.contextValue = "sidenoteFolder";
+    this.iconPath = new vscode.ThemeIcon("folder");
     this.command = {
       command: "sidenotes.selectItem",
       title: "Select Item",
