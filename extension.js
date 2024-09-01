@@ -3,12 +3,17 @@ const fs = require("fs");
 const path = require("path");
 const { promisify } = require("util");
 const { exec } = require("child_process");
+const { showNotification } = require("./showNotification");
 
 const execAsync = promisify(exec);
 const readFileAsync = promisify(fs.readFile);
 
 let sidenotesFolderPath;
 let sidenoteProvider;
+
+function capitalize(s) {
+  return s[0].toUpperCase() + s.slice(1);
+}
 
 function activate(context) {
   console.log("Sidenotes extension is now active!");
@@ -97,23 +102,6 @@ function activate(context) {
   });
 }
 
-// Helper function to show notifications with auto-closing
-function showNotification(message, type = "info") {
-  vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: message,
-      cancellable: false,
-    },
-    async (progress) => {
-      for (let i = 0; i < 40; i++) {
-        progress.report({ increment: 2.5 });
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-    }
-  );
-}
-
 async function createNewItem(itemType, sidenoteProvider, treeView) {
   const { targetFolder, parentFolderName } = getTargetFolder(sidenoteProvider);
   const itemTypeName = itemType === "note" ? "note" : "folder";
@@ -140,7 +128,7 @@ async function createNewItem(itemType, sidenoteProvider, treeView) {
         await fs.promises.mkdir(newPath);
       }
       sidenoteProvider.refresh();
-      showNotification(`${itemTypeName} "${itemName}" created successfully.`);
+      showNotification(`${capitalize(itemTypeName)} "${itemName}" created successfully.`);
     } catch (err) {
       showNotification(
         `Failed to create ${itemTypeName}: ${err.message}`,
@@ -165,7 +153,7 @@ async function deleteItem(item, sidenoteProvider) {
   if (confirmDelete === "Yes") {
     try {
       await moveToTrash(itemPath);
-      showNotification(`"${itemName}" has been moved to the trash.`);
+      showNotification(`"${capitalize(itemName)}" has been moved to the trash.`);
       sidenoteProvider.refresh();
     } catch (err) {
       showNotification(
@@ -203,7 +191,7 @@ async function renameItem(item, sidenoteProvider) {
 
     try {
       await fs.promises.rename(oldPath, newPath);
-      showNotification(`"${oldName}" has been renamed to "${newName}".`);
+      showNotification(`"${capitalize(oldName)}" has been renamed to "${newName}".`);
 
       // Create a new item with the updated name and path
       const newItem = isFolder
@@ -374,7 +362,11 @@ async function selectFileInSidebar(filePath, treeView) {
 
   const fileElement = await sidenoteProvider.findElementByPath(filePath);
   if (fileElement) {
-    await treeView.reveal(fileElement, { expand: false, select: true, focus: true });
+    await treeView.reveal(fileElement, {
+      expand: false,
+      select: true,
+      focus: true,
+    });
   }
 }
 
@@ -475,7 +467,11 @@ class SidenotesProvider {
       currentPath = path.join(currentPath, part);
       const children = await this.getChildren(currentElement);
       currentElement = children.find((child) => {
-        return (child instanceof SidenoteFolder ? child.folderPath : child.filePath) === currentPath;
+        return (
+          (child instanceof SidenoteFolder
+            ? child.folderPath
+            : child.filePath) === currentPath
+        );
       });
 
       if (!currentElement) {
