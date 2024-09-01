@@ -30,19 +30,24 @@ function activate(context) {
 
     // Register command to create new note
     vscode.commands.registerCommand('sidenotes.createNewNote', async () => {
+        const activeEditor = vscode.window.activeTextEditor;
+        let targetFolder = sidenotesFolderPath;
+        let promptMessage = 'Enter the name for the new note';
+
+        if (activeEditor && activeEditor.document.uri.fsPath.startsWith(sidenotesFolderPath)) {
+            targetFolder = path.dirname(activeEditor.document.uri.fsPath);
+            const folderName = path.basename(targetFolder);
+            if (targetFolder !== sidenotesFolderPath) {
+                promptMessage = `Enter the name for the new note in ${folderName} folder`;
+            }
+        }
+
         const fileName = await vscode.window.showInputBox({
-            prompt: 'Enter the name for the new note',
+            prompt: promptMessage,
             placeHolder: 'New Note'
         });
 
         if (fileName) {
-            const activeEditor = vscode.window.activeTextEditor;
-            let targetFolder = sidenotesFolderPath;
-
-            if (activeEditor && activeEditor.document.uri.fsPath.startsWith(sidenotesFolderPath)) {
-                targetFolder = path.dirname(activeEditor.document.uri.fsPath);
-            }
-
             const newFilePath = path.join(targetFolder, `${fileName}.md`);
             
             fs.writeFile(newFilePath, '', (err) => {
