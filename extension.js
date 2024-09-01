@@ -18,7 +18,7 @@ function activate(context) {
 
   // Register SidenotesProvider
   const sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
-  vscode.window.createTreeView("sidenotes-files", {
+  const treeView = vscode.window.createTreeView("sidenotes-files", {
     treeDataProvider: sidenoteProvider,
     showCollapseAll: true,
   });
@@ -62,7 +62,7 @@ function activate(context) {
 
   // Register command for quick search
   vscode.commands.registerCommand("sidenotes.quickSearch", async () => {
-    await quickSearch(sidenoteProvider);
+    await quickSearch(sidenoteProvider, treeView);
   });
 
   // Watch for changes in the .sidenotes folder
@@ -228,7 +228,7 @@ async function renameItem(item, sidenoteProvider) {
   }
 }
 
-async function quickSearch(sidenoteProvider) {
+async function quickSearch(sidenoteProvider, treeView) {
   const quickPick = vscode.window.createQuickPick();
   quickPick.placeholder = "Search for notes...";
   quickPick.matchOnDescription = true;
@@ -257,6 +257,9 @@ async function quickSearch(sidenoteProvider) {
         selectedItem.filePath
       );
       await vscode.window.showTextDocument(doc);
+
+      // Locate and select the file in the sidebar
+      await sidenoteProvider.selectFileInSidebar(selectedItem.filePath, treeView);
     }
   });
 
@@ -424,6 +427,33 @@ class SidenotesProvider {
       );
     }
     return null;
+  }
+
+  async selectFileInSidebar(filePath, treeView) {
+    const relativePath = path.relative(this.sidenotesFolderPath, filePath);
+    const pathParts = relativePath.split(path.sep);
+    let currentPath = this.sidenotesFolderPath;
+    
+    for (let i = 0; i < pathParts.length; i++) {
+      currentPath = path.join(currentPath, pathParts[i]);
+      const isLastPart = i === pathParts.length - 1;
+      
+      if (isLastPart) {
+        const item = new SidenoteItem(
+          path.basename(currentPath, ".md"),
+          currentPath,
+          vscode.TreeItemCollapsibleState.None
+        );
+        await treeView.reveal(item, { select: true, focus: true, expand: true });
+      } else {
+        const folder = new SidenoteFolder(
+          pathParts[i],
+          currentPath,
+          vscode.TreeItemCollapsibleState.Expanded
+        );
+        await treeView.reveal(folder, { select: false, focus: false, expand: true });
+      }
+    }
   }
 }
 
