@@ -13,10 +13,22 @@ function activate(context) {
   console.log("Sidenotes extension is now active!");
 
   // Create .sidenotes folder in user's home directory
-  const homeDir = process.env.HOME || process.env.USERPROFILE;
-  sidenotesFolderPath = path.join(homeDir, ".sidenotes");
+  // const homeDir = process.env.HOME || process.env.USERPROFILE;
+  // sidenotesFolderPath = path.join(homeDir, ".sidenotes");
+  // Get the configuration
+  const config = vscode.workspace.getConfiguration("sidenotes");
+  const customRootFolder = config.get("rootFolder");
+
+  // Set sidenotesFolderPath based on the configuration
+  if (customRootFolder) {
+    sidenotesFolderPath = path.resolve(customRootFolder);
+  } else {
+    const homeDir = process.env.HOME || process.env.USERPROFILE;
+    sidenotesFolderPath = path.join(homeDir, ".sidenotes");
+  }
+
   if (!fs.existsSync(sidenotesFolderPath)) {
-    fs.mkdirSync(sidenotesFolderPath);
+    fs.mkdirSync(sidenotesFolderPath, { recursive: true });
   }
 
   // Register SidenotesProvider
@@ -68,7 +80,7 @@ function activate(context) {
     await quickSearch(sidenoteProvider);
   });
 
-  // Watch for changes in the .sidenotes folder
+  // Watch for changes in the sidenotes folder
   const watcher = fs.watch(
     sidenotesFolderPath,
     { recursive: true, persistent: false },
