@@ -66,13 +66,19 @@
         "command": "sidenotes.createNewNote",
         "key": "ctrl+alt+n",
         "mac": "cmd+alt+n",
-        "when": "editorTextFocus"
+        "when": "sideBarVisible && activeViewlet == 'workbench.view.extension.sidenotes-sidebar'"
+      },
+      {
+        "command": "sidenotes.createNewFolder",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d",
+        "when": "sideBarVisible && activeViewlet == 'workbench.view.extension.sidenotes-sidebar'"
       },
       {
         "command": "sidenotes.quickSearch",
         "key": "ctrl+alt+f",
         "mac": "cmd+alt+f",
-        "when": "editorTextFocus"
+        "when": "sideBarVisible && activeViewlet == 'workbench.view.extension.sidenotes-sidebar'"
       }
     ],
     "viewsContainers": {
