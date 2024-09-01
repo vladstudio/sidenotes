@@ -23,6 +23,21 @@
         "command": "sidenotes.createNewNote",
         "title": "Create New Note",
         "icon": "$(add)"
+      },
+      {
+        "command": "sidenotes.createNewFolder",
+        "title": "Create New Folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "sidenotes.deleteItem",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "sidenotes.renameItem",
+        "title": "Rename",
+        "icon": "$(edit)"
       }
     ],
     "viewsContainers": {
@@ -48,6 +63,23 @@
           "command": "sidenotes.createNewNote",
           "when": "view == sidenotes-files",
           "group": "navigation"
+        },
+        {
+          "command": "sidenotes.createNewFolder",
+          "when": "view == sidenotes-files",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "sidenotes.renameItem",
+          "when": "view == sidenotes-files",
+          "group": "inline@1"
+        },
+        {
+          "command": "sidenotes.deleteItem",
+          "when": "view == sidenotes-files",
+          "group": "inline@2"
         }
       ]
     }

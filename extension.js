@@ -1,6 +1,10 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
+const { promisify } = require('util');
+const { exec } = require('child_process');
+
+const execAsync = promisify(exec);
 
 let sidenotesFolderPath;
 
@@ -30,37 +34,27 @@ function activate(context) {
 
     // Register command to create new note
     vscode.commands.registerCommand('sidenotes.createNewNote', async () => {
-        const activeEditor = vscode.window.activeTextEditor;
-        let targetFolder = sidenotesFolderPath;
-        let promptMessage = 'Enter the name for the new note';
+        await createNewItem('note', sidenoteProvider);
+    });
 
-        if (activeEditor && activeEditor.document.uri.fsPath.startsWith(sidenotesFolderPath)) {
-            targetFolder = path.dirname(activeEditor.document.uri.fsPath);
-            const folderName = path.basename(targetFolder);
-            if (targetFolder !== sidenotesFolderPath) {
-                promptMessage = `Enter the name for the new note in ${folderName} folder`;
-            }
-        }
+    // Register command to create new folder
+    vscode.commands.registerCommand('sidenotes.createNewFolder', async () => {
+        await createNewItem('folder', sidenoteProvider);
+    });
 
-        const fileName = await vscode.window.showInputBox({
-            prompt: promptMessage,
-            placeHolder: 'New Note'
-        });
+    // Register command to select an item
+    vscode.commands.registerCommand('sidenotes.selectItem', (item) => {
+        sidenoteProvider.setSelectedItem(item);
+    });
 
-        if (fileName) {
-            const newFilePath = path.join(targetFolder, `${fileName}.md`);
-            
-            fs.writeFile(newFilePath, '', (err) => {
-                if (err) {
-                    vscode.window.showErrorMessage(`Failed to create note: ${err.message}`);
-                } else {
-                    vscode.workspace.openTextDocument(newFilePath).then(doc => {
-                        vscode.window.showTextDocument(doc);
-                    });
-                    sidenoteProvider.refresh();
-                }
-            });
-        }
+    // Register command to delete an item
+    vscode.commands.registerCommand('sidenotes.deleteItem', async (item) => {
+        await deleteItem(item, sidenoteProvider);
+    });
+
+    // Register command to rename an item
+    vscode.commands.registerCommand('sidenotes.renameItem', async (item) => {
+        await renameItem(item, sidenoteProvider);
     });
 
     // Watch for changes in the .sidenotes folder
@@ -77,11 +71,135 @@ function activate(context) {
     });
 }
 
+async function createNewItem(itemType, sidenoteProvider) {
+    const { targetFolder, parentFolderName } = getTargetFolder(sidenoteProvider);
+    const itemTypeName = itemType === 'note' ? 'note' : 'folder';
+    const promptMessage = getPromptMessage(itemTypeName, parentFolderName);
+
+    const itemName = await vscode.window.showInputBox({
+        prompt: promptMessage,
+        placeHolder: `New ${itemTypeName}`
+    });
+
+    if (itemName) {
+        const newPath = itemType === 'note'
+            ? path.join(targetFolder, `${itemName}.md`)
+            : path.join(targetFolder, itemName);
+
+        try {
+            if (itemType === 'note') {
+                await fs.promises.writeFile(newPath, '');
+                const doc = await vscode.workspace.openTextDocument(newPath);
+                await vscode.window.showTextDocument(doc);
+            } else {
+                await fs.promises.mkdir(newPath);
+            }
+            sidenoteProvider.refresh();
+        } catch (err) {
+            vscode.window.showErrorMessage(`Failed to create ${itemTypeName}: ${err.message}`);
+        }
+    }
+}
+
+async function deleteItem(item, sidenoteProvider) {
+    const itemPath = item instanceof SidenoteFolder ? item.folderPath : item.filePath;
+    const itemName = item.label;
+
+    const confirmDelete = await vscode.window.showWarningMessage(
+        `Are you sure you want to delete "${itemName}"?`,
+        { modal: true },
+        'Yes',
+        'No'
+    );
+
+    if (confirmDelete === 'Yes') {
+        try {
+            await moveToTrash(itemPath);
+            vscode.window.showInformationMessage(`"${itemName}" has been moved to the trash.`);
+            sidenoteProvider.refresh();
+        } catch (err) {
+            vscode.window.showErrorMessage(`Failed to delete "${itemName}": ${err.message}`);
+        }
+    }
+}
+
+async function renameItem(item, sidenoteProvider) {
+    const oldPath = item instanceof SidenoteFolder ? item.folderPath : item.filePath;
+    const oldName = item.label;
+    const isFolder = item instanceof SidenoteFolder;
+
+    const newName = await vscode.window.showInputBox({
+        prompt: `Enter new name for "${oldName}"`,
+        value: oldName,
+        validateInput: (value) => {
+            if (value.trim().length === 0) {
+                return 'Name cannot be empty';
+            }
+            if (isFolder && value.includes('.')) {
+                return 'Folder name cannot contain a dot';
+            }
+            return null;
+        }
+    });
+
+    if (newName && newName !== oldName) {
+        const newPath = isFolder
+            ? path.join(path.dirname(oldPath), newName)
+            : path.join(path.dirname(oldPath), `${newName}.md`);
+
+        try {
+            await fs.promises.rename(oldPath, newPath);
+            vscode.window.showInformationMessage(`"${oldName}" has been renamed to "${newName}".`);
+            sidenoteProvider.refresh();
+        } catch (err) {
+            vscode.window.showErrorMessage(`Failed to rename "${oldName}": ${err.message}`);
+        }
+    }
+}
+
+async function moveToTrash(itemPath) {
+    if (process.platform === 'darwin') {
+        // macOS
+        await execAsync(`osascript -e 'tell app "Finder" to delete POSIX file "${itemPath}"'`);
+    } else if (process.platform === 'win32') {
+        // Windows
+        await execAsync(`powershell -command "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('${itemPath}', 'OnlyErrorDialogs', 'SendToRecycleBin')"`);
+    } else {
+        // Linux and other platforms
+        await execAsync(`gio trash "${itemPath}"`);
+    }
+}
+
+function getTargetFolder(sidenoteProvider) {
+    const selectedItem = sidenoteProvider.getSelectedItem();
+    let targetFolder = sidenotesFolderPath;
+    let parentFolderName = '';
+
+    if (selectedItem) {
+        if (selectedItem instanceof SidenoteFolder) {
+            targetFolder = selectedItem.folderPath;
+            parentFolderName = selectedItem.label;
+        } else if (selectedItem instanceof SidenoteItem) {
+            targetFolder = path.dirname(selectedItem.filePath);
+            parentFolderName = path.basename(targetFolder);
+        }
+    }
+
+    return { targetFolder, parentFolderName };
+}
+
+function getPromptMessage(itemTypeName, parentFolderName) {
+    return parentFolderName
+        ? `Enter the name for the new ${itemTypeName} in ${parentFolderName} folder`
+        : `Enter the name for the new ${itemTypeName}`;
+}
+
 class SidenotesProvider {
     constructor(sidenotesFolderPath) {
         this.sidenotesFolderPath = sidenotesFolderPath;
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this._selectedItem = null;
     }
 
     refresh() {
@@ -123,17 +241,27 @@ class SidenotesProvider {
 
         return items;
     }
+
+    getSelectedItem() {
+        return this._selectedItem;
+    }
+
+    setSelectedItem(item) {
+        this._selectedItem = item;
+    }
 }
 
 class SidenoteItem extends vscode.TreeItem {
     constructor(label, filePath, collapsibleState) {
         super(label, collapsibleState);
+        this.filePath = filePath;
         this.tooltip = `${label}`;
         this.description = '';
+        this.contextValue = 'sidenoteItem';
         this.command = {
-            command: 'sidenotes.openFile',
-            title: 'Open File',
-            arguments: [filePath]
+            command: 'sidenotes.selectItem',
+            title: 'Select Item',
+            arguments: [this]
         };
     }
 }
@@ -144,7 +272,12 @@ class SidenoteFolder extends vscode.TreeItem {
         this.folderPath = folderPath;
         this.tooltip = `${label}`;
         this.description = '';
-        this.contextValue = 'folder';
+        this.contextValue = 'sidenoteFolder';
+        this.command = {
+            command: 'sidenotes.selectItem',
+            title: 'Select Item',
+            arguments: [this]
+        };
     }
 }
 
