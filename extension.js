@@ -27,6 +27,19 @@ function activate(context) {
             vscode.window.showTextDocument(doc);
         });
     });
+
+    // Watch for changes in the .sidenotes folder
+    const watcher = fs.watch(sidenotesFolderPath, { persistent: false }, (eventType, filename) => {
+        if (filename) {
+            console.log(`File ${filename} has been ${eventType}`);
+            sidenoteProvider.refresh();
+        }
+    });
+
+    // Dispose the watcher when the extension is deactivated
+    context.subscriptions.push({
+        dispose: () => watcher.close()
+    });
 }
 
 class SidenotesProvider {
