@@ -17,32 +17,40 @@
     "commands": [
       {
         "command": "sidenotes.refreshSidebar",
-        "title": "Refresh Sidenotes"
+        "title": "Sidenotes: Refresh Sidebar"
       },
       {
         "command": "sidenotes.createNewNote",
-        "title": "Create New Note",
+        "title": "Sidenotes: Create New Note",
         "icon": "$(add)"
       },
       {
         "command": "sidenotes.createNewFolder",
-        "title": "Create New Folder",
+        "title": "Sidenotes: Create New Folder",
         "icon": "$(new-folder)"
       },
       {
         "command": "sidenotes.deleteItem",
-        "title": "Delete",
+        "title": "Sidenotes: Delete Item",
         "icon": "$(trash)"
       },
       {
         "command": "sidenotes.renameItem",
-        "title": "Rename",
+        "title": "Sidenotes: Rename Item",
         "icon": "$(edit)"
       },
       {
         "command": "sidenotes.quickSearch",
-        "title": "Quick Search",
+        "title": "Sidenotes: Quick Search",
         "icon": "$(search)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sidenotes.createNewNote",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "editorTextFocus"
       }
     ],
     "viewsContainers": {

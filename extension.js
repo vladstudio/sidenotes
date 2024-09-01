@@ -1,11 +1,10 @@
 const vscode = require("vscode");
-const fs = require("fs");
+const fs = require("fs").promises;
 const path = require("path");
 const { promisify } = require("util");
 const { exec } = require("child_process");
 
 const execAsync = promisify(exec);
-const readFileAsync = promisify(fs.readFile);
 
 let sidenotesFolderPath;
 
@@ -15,9 +14,7 @@ function activate(context) {
   // Create .sidenotes folder in user's home directory
   const homeDir = process.env.HOME || process.env.USERPROFILE;
   sidenotesFolderPath = path.join(homeDir, ".sidenotes");
-  if (!fs.existsSync(sidenotesFolderPath)) {
-    fs.mkdirSync(sidenotesFolderPath);
-  }
+  fs.mkdir(sidenotesFolderPath, { recursive: true }).catch(console.error);
 
   // Register SidenotesProvider
   const sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
@@ -121,11 +118,11 @@ async function createNewItem(itemType, sidenoteProvider) {
 
     try {
       if (itemType === "note") {
-        await fs.promises.writeFile(newPath, "");
+        await fs.writeFile(newPath, "");
         const doc = await vscode.workspace.openTextDocument(newPath);
         await vscode.window.showTextDocument(doc);
       } else {
-        await fs.promises.mkdir(newPath);
+        await fs.mkdir(newPath);
       }
       sidenoteProvider.refresh();
       showNotification(`${itemTypeName} "${itemName}" created successfully.`);
@@ -190,7 +187,7 @@ async function renameItem(item, sidenoteProvider) {
       : path.join(path.dirname(oldPath), `${newName}.md`);
 
     try {
-      await fs.promises.rename(oldPath, newPath);
+      await fs.rename(oldPath, newPath);
       showNotification(`"${oldName}" has been renamed to "${newName}".`);
 
       // Create a new item with the updated name and path
@@ -275,7 +272,7 @@ async function searchNotes(searchTerm) {
     if (fileName.includes(searchTerm.toLowerCase())) {
       results.push({ filePath: file });
     } else {
-      const content = await readFileAsync(file, "utf-8");
+      const content = await fs.readFile(file, "utf-8");
       if (content.toLowerCase().includes(searchTerm.toLowerCase())) {
         results.push({ filePath: file, description: `contains ${searchTerm}` });
       }
@@ -290,7 +287,7 @@ async function searchNotes(searchTerm) {
 }
 
 async function getAllMarkdownFiles(dir) {
-  const files = await fs.promises.readdir(dir, { withFileTypes: true });
+  const files = await fs.readdir(dir, { withFileTypes: true });
   const mdFiles = [];
 
   for (const file of files) {
@@ -362,7 +359,7 @@ class SidenotesProvider {
     return element;
   }
 
-  getChildren(element) {
+  async getChildren(element) {
     if (element) {
       return this.getSidenotesItems(element.folderPath);
     } else {
@@ -370,33 +367,29 @@ class SidenotesProvider {
     }
   }
 
-  getSidenotesItems(folderPath) {
+  async getSidenotesItems(folderPath) {
     const items = [];
-    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+    const entries = await fs.readdir(folderPath, { withFileTypes: true });
 
     // Add folders first
-    entries
-      .filter((entry) => entry.isDirectory())
-      .forEach((folder) => {
-        const fullPath = path.join(folderPath, folder.name);
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const fullPath = path.join(folderPath, entry.name);
         items.push(
           new SidenoteFolder(
-            folder.name,
+            entry.name,
             fullPath,
             vscode.TreeItemCollapsibleState.Collapsed
           )
         );
-      });
+      }
+    }
 
     // Then add markdown files
-    entries
-      .filter(
-        (entry) =>
-          entry.isFile() && path.extname(entry.name).toLowerCase() === ".md"
-      )
-      .forEach((file) => {
-        const fullPath = path.join(folderPath, file.name);
-        const displayName = path.basename(file.name, ".md");
+    for (const entry of entries) {
+      if (entry.isFile() && path.extname(entry.name).toLowerCase() === ".md") {
+        const fullPath = path.join(folderPath, entry.name);
+        const displayName = path.basename(entry.name, ".md");
         items.push(
           new SidenoteItem(
             displayName,
@@ -404,7 +397,8 @@ class SidenotesProvider {
             vscode.TreeItemCollapsibleState.None
           )
         );
-      });
+      }
+    }
 
     return items;
   }
@@ -455,6 +449,7 @@ class SidenoteFolder extends vscode.TreeItem {
     this.tooltip = `${label}`;
     this.description = "";
     this.contextValue = "sidenoteFolder";
+    this.iconPath = new vscode.ThemeIcon("folder");
     this.command = {
       command: "sidenotes.selectItem",
       title: "Select Item",
