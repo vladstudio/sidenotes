@@ -27,32 +27,52 @@
     "commands": [
       {
         "command": "sidenotes.refreshSidebar",
-        "title": "Refresh Sidenotes"
+        "title": "Refresh Sidebar",
+        "category": "Sidenotes"
       },
       {
         "command": "sidenotes.createNewNote",
         "title": "Create New Note",
+        "category": "Sidenotes",
         "icon": "$(add)"
       },
       {
         "command": "sidenotes.createNewFolder",
         "title": "Create New Folder",
+        "category": "Sidenotes",
         "icon": "$(new-folder)"
       },
       {
         "command": "sidenotes.deleteItem",
-        "title": "Delete",
+        "title": "Delete Item",
+        "category": "Sidenotes",
         "icon": "$(trash)"
       },
       {
         "command": "sidenotes.renameItem",
-        "title": "Rename",
+        "title": "Rename Item",
+        "category": "Sidenotes",
         "icon": "$(edit)"
       },
       {
         "command": "sidenotes.quickSearch",
         "title": "Quick Search",
+        "category": "Sidenotes",
         "icon": "$(search)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sidenotes.createNewNote",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "sidenotes.quickSearch",
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f",
+        "when": "editorTextFocus"
       }
     ],
     "viewsContainers": {
