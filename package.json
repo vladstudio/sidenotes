@@ -18,6 +18,11 @@
       {
         "command": "sidenotes.refreshSidebar",
         "title": "Refresh Sidenotes"
+      },
+      {
+        "command": "sidenotes.createNewNote",
+        "title": "Create New Note",
+        "icon": "$(add)"
       }
     ],
     "viewsContainers": {
@@ -34,6 +39,15 @@
         {
           "id": "sidenotes-files",
           "name": "Sidenotes Files"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "sidenotes.createNewNote",
+          "when": "view == sidenotes-files",
+          "group": "navigation"
         }
       ]
     }
