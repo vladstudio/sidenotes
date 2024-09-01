@@ -8,13 +8,11 @@ const execAsync = promisify(exec);
 const readFileAsync = promisify(fs.readFile);
 
 let sidenotesFolderPath;
+let sidenoteProvider;
 
 function activate(context) {
   console.log("Sidenotes extension is now active!");
 
-  // Create .sidenotes folder in user's home directory
-  // const homeDir = process.env.HOME || process.env.USERPROFILE;
-  // sidenotesFolderPath = path.join(homeDir, ".sidenotes");
   // Get the configuration
   const config = vscode.workspace.getConfiguration("sidenotes");
   const customRootFolder = config.get("rootFolder");
@@ -32,8 +30,8 @@ function activate(context) {
   }
 
   // Register SidenotesProvider
-  const sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
-  vscode.window.createTreeView("sidenotes-files", {
+  sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
+  const treeView = vscode.window.createTreeView("sidenotes-files", {
     treeDataProvider: sidenoteProvider,
     showCollapseAll: true,
   });
@@ -47,12 +45,13 @@ function activate(context) {
   vscode.commands.registerCommand("sidenotes.openFile", (filePath) => {
     vscode.workspace.openTextDocument(filePath).then((doc) => {
       vscode.window.showTextDocument(doc);
+      selectFileInSidebar(filePath, treeView);
     });
   });
 
   // Register command to create new note
   vscode.commands.registerCommand("sidenotes.createNewNote", async () => {
-    await createNewItem("note", sidenoteProvider);
+    await createNewItem("note", sidenoteProvider, treeView);
   });
 
   // Register command to create new folder
@@ -77,7 +76,7 @@ function activate(context) {
 
   // Register command for quick search
   vscode.commands.registerCommand("sidenotes.quickSearch", async () => {
-    await quickSearch(sidenoteProvider);
+    await quickSearch(sidenoteProvider, treeView);
   });
 
   // Watch for changes in the sidenotes folder
@@ -115,7 +114,7 @@ function showNotification(message, type = "info") {
   );
 }
 
-async function createNewItem(itemType, sidenoteProvider) {
+async function createNewItem(itemType, sidenoteProvider, treeView) {
   const { targetFolder, parentFolderName } = getTargetFolder(sidenoteProvider);
   const itemTypeName = itemType === "note" ? "note" : "folder";
   const promptMessage = getPromptMessage(itemTypeName, parentFolderName);
@@ -136,6 +135,7 @@ async function createNewItem(itemType, sidenoteProvider) {
         await fs.promises.writeFile(newPath, "");
         const doc = await vscode.workspace.openTextDocument(newPath);
         await vscode.window.showTextDocument(doc);
+        selectFileInSidebar(newPath, treeView);
       } else {
         await fs.promises.mkdir(newPath);
       }
@@ -243,7 +243,7 @@ async function renameItem(item, sidenoteProvider) {
   }
 }
 
-async function quickSearch(sidenoteProvider) {
+async function quickSearch(sidenoteProvider, treeView) {
   const quickPick = vscode.window.createQuickPick();
   quickPick.placeholder = "Search for notes...";
   quickPick.matchOnDescription = true;
@@ -272,6 +272,7 @@ async function quickSearch(sidenoteProvider) {
         selectedItem.filePath
       );
       await vscode.window.showTextDocument(doc);
+      selectFileInSidebar(selectedItem.filePath, treeView);
     }
   });
 
@@ -358,6 +359,25 @@ function getPromptMessage(itemTypeName, parentFolderName) {
     : `Enter the name for the new ${itemTypeName}`;
 }
 
+async function selectFileInSidebar(filePath, treeView) {
+  const relativePath = path.relative(sidenotesFolderPath, filePath);
+  const pathParts = relativePath.split(path.sep);
+
+  let currentPath = sidenotesFolderPath;
+  for (const part of pathParts) {
+    currentPath = path.join(currentPath, part);
+    const element = await sidenoteProvider.findElementByPath(currentPath);
+    if (element) {
+      await treeView.reveal(element, { expand: true, select: false });
+    }
+  }
+
+  const fileElement = await sidenoteProvider.findElementByPath(filePath);
+  if (fileElement) {
+    await treeView.reveal(fileElement, { expand: false, select: true, focus: true });
+  }
+}
+
 class SidenotesProvider {
   constructor(sidenotesFolderPath) {
     this.sidenotesFolderPath = sidenotesFolderPath;
@@ -442,6 +462,28 @@ class SidenotesProvider {
       );
     }
     return null;
+  }
+
+  async findElementByPath(elementPath) {
+    const relativePath = path.relative(this.sidenotesFolderPath, elementPath);
+    const pathParts = relativePath.split(path.sep);
+
+    let currentElement = null;
+    let currentPath = this.sidenotesFolderPath;
+
+    for (const part of pathParts) {
+      currentPath = path.join(currentPath, part);
+      const children = await this.getChildren(currentElement);
+      currentElement = children.find((child) => {
+        return (child instanceof SidenoteFolder ? child.folderPath : child.filePath) === currentPath;
+      });
+
+      if (!currentElement) {
+        return null;
+      }
+    }
+
+    return currentElement;
   }
 }
 
