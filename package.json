@@ -38,6 +38,11 @@
         "command": "sidenotes.renameItem",
         "title": "Rename",
         "icon": "$(edit)"
+      },
+      {
+        "command": "sidenotes.quickSearch",
+        "title": "Quick Search",
+        "icon": "$(search)"
       }
     ],
     "viewsContainers": {
@@ -66,6 +71,11 @@
         },
         {
           "command": "sidenotes.createNewFolder",
+          "when": "view == sidenotes-files",
+          "group": "navigation"
+        },
+        {
+          "command": "sidenotes.quickSearch",
           "when": "view == sidenotes-files",
           "group": "navigation"
         }

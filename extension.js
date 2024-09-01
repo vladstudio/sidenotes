@@ -5,6 +5,7 @@ const { promisify } = require('util');
 const { exec } = require('child_process');
 
 const execAsync = promisify(exec);
+const readFileAsync = promisify(fs.readFile);
 
 let sidenotesFolderPath;
 
@@ -20,7 +21,10 @@ function activate(context) {
 
     // Register SidenotesProvider
     const sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
-    vscode.window.registerTreeDataProvider('sidenotes-files', sidenoteProvider);
+    vscode.window.createTreeView('sidenotes-files', { 
+        treeDataProvider: sidenoteProvider,
+        showCollapseAll: true
+    });
 
     // Register refresh command
     vscode.commands.registerCommand('sidenotes.refreshSidebar', () => sidenoteProvider.refresh());
@@ -55,6 +59,11 @@ function activate(context) {
     // Register command to rename an item
     vscode.commands.registerCommand('sidenotes.renameItem', async (item) => {
         await renameItem(item, sidenoteProvider);
+    });
+
+    // Register command for quick search
+    vscode.commands.registerCommand('sidenotes.quickSearch', async () => {
+        await quickSearch(sidenoteProvider);
     });
 
     // Watch for changes in the .sidenotes folder
@@ -150,11 +159,102 @@ async function renameItem(item, sidenoteProvider) {
         try {
             await fs.promises.rename(oldPath, newPath);
             vscode.window.showInformationMessage(`"${oldName}" has been renamed to "${newName}".`);
+            
+            // Create a new item with the updated name and path
+            const newItem = isFolder 
+                ? new SidenoteFolder(newName, newPath, vscode.TreeItemCollapsibleState.Collapsed)
+                : new SidenoteItem(newName, newPath, vscode.TreeItemCollapsibleState.None);
+            
+            // Update the selected item in the provider
+            sidenoteProvider.setSelectedItem(newItem);
+            
+            // Refresh the sidebar
             sidenoteProvider.refresh();
+            
+            // If it's a file, reload it in the editor
+            if (!isFolder) {
+                const oldEditor = vscode.window.visibleTextEditors.find(editor => editor.document.uri.fsPath === oldPath);
+                if (oldEditor) {
+                    const document = await vscode.workspace.openTextDocument(newPath);
+                    await vscode.window.showTextDocument(document, oldEditor.viewColumn);
+                }
+            }
         } catch (err) {
             vscode.window.showErrorMessage(`Failed to rename "${oldName}": ${err.message}`);
         }
     }
+}
+
+async function quickSearch(sidenoteProvider) {
+    const quickPick = vscode.window.createQuickPick();
+    quickPick.placeholder = 'Search for notes...';
+    quickPick.matchOnDescription = true;
+    quickPick.matchOnDetail = true;
+
+    let searchTimeout;
+
+    quickPick.onDidChangeValue(async value => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            const searchResults = await searchNotes(value);
+            quickPick.items = searchResults.map(result => ({
+                label: path.basename(result.filePath, '.md'),
+                description: result.matchType === 'name' ? 'Name match' : 'Content match',
+                detail: path.relative(sidenotesFolderPath, result.filePath),
+                filePath: result.filePath
+            }));
+        }, 500);
+    });
+
+    quickPick.onDidAccept(async () => {
+        const selectedItem = quickPick.selectedItems[0];
+        if (selectedItem) {
+            quickPick.hide();
+            const doc = await vscode.workspace.openTextDocument(selectedItem.filePath);
+            await vscode.window.showTextDocument(doc);
+        }
+    });
+
+    quickPick.show();
+}
+
+async function searchNotes(searchTerm) {
+    const results = [];
+    const files = await getAllMarkdownFiles(sidenotesFolderPath);
+
+    for (const file of files) {
+        const fileName = path.basename(file, '.md').toLowerCase();
+        if (fileName.includes(searchTerm.toLowerCase())) {
+            results.push({ filePath: file, matchType: 'name' });
+        } else {
+            const content = await readFileAsync(file, 'utf-8');
+            if (content.toLowerCase().includes(searchTerm.toLowerCase())) {
+                results.push({ filePath: file, matchType: 'content' });
+            }
+        }
+
+        if (results.length >= 12) {
+            break;
+        }
+    }
+
+    return results;
+}
+
+async function getAllMarkdownFiles(dir) {
+    const files = await fs.promises.readdir(dir, { withFileTypes: true });
+    const mdFiles = [];
+
+    for (const file of files) {
+        const fullPath = path.join(dir, file.name);
+        if (file.isDirectory()) {
+            mdFiles.push(...await getAllMarkdownFiles(fullPath));
+        } else if (path.extname(file.name).toLowerCase() === '.md') {
+            mdFiles.push(fullPath);
+        }
+    }
+
+    return mdFiles;
 }
 
 async function moveToTrash(itemPath) {
@@ -249,6 +349,17 @@ class SidenotesProvider {
     setSelectedItem(item) {
         this._selectedItem = item;
     }
+
+    getParent(element) {
+        if (element.filePath) {
+            const parentPath = path.dirname(element.filePath);
+            if (parentPath === this.sidenotesFolderPath) {
+                return null;
+            }
+            return new SidenoteFolder(path.basename(parentPath), parentPath, vscode.TreeItemCollapsibleState.Expanded);
+        }
+        return null;
+    }
 }
 
 class SidenoteItem extends vscode.TreeItem {
@@ -259,9 +370,9 @@ class SidenoteItem extends vscode.TreeItem {
         this.description = '';
         this.contextValue = 'sidenoteItem';
         this.command = {
-            command: 'sidenotes.selectItem',
-            title: 'Select Item',
-            arguments: [this]
+            command: 'sidenotes.openFile',
+            title: 'Open File',
+            arguments: [this.filePath]
         };
     }
 }
