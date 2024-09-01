@@ -1,36 +1,84 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
+const fs = require('fs');
+const path = require('path');
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+let sidenotesFolderPath;
 
-/**
- * @param {vscode.ExtensionContext} context
- */
 function activate(context) {
+    console.log('Sidenotes extension is now active!');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vladstudio-sidenotes" is now active!');
+    // Create .sidenotes folder in user's home directory
+    const homeDir = process.env.HOME || process.env.USERPROFILE;
+    sidenotesFolderPath = path.join(homeDir, '.sidenotes');
+    if (!fs.existsSync(sidenotesFolderPath)) {
+        fs.mkdirSync(sidenotesFolderPath);
+    }
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with  registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('vladstudio-sidenotes.helloWorld', function () {
-		// The code you place here will be executed every time your command is executed
+    // Register SidenotesProvider
+    const sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
+    vscode.window.registerTreeDataProvider('sidenotes-files', sidenoteProvider);
 
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Sidenotes!');
-	});
+    // Register refresh command
+    vscode.commands.registerCommand('sidenotes.refreshSidebar', () => sidenoteProvider.refresh());
 
-	context.subscriptions.push(disposable);
+    // Register command to open file
+    vscode.commands.registerCommand('sidenotes.openFile', (filePath) => {
+        vscode.workspace.openTextDocument(filePath).then(doc => {
+            vscode.window.showTextDocument(doc);
+        });
+    });
 }
 
-// This method is called when your extension is deactivated
+class SidenotesProvider {
+    constructor(sidenotesFolderPath) {
+        this.sidenotesFolderPath = sidenotesFolderPath;
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    }
+
+    refresh() {
+        this._onDidChangeTreeData.fire();
+    }
+
+    getTreeItem(element) {
+        return element;
+    }
+
+    getChildren(element) {
+        if (!element) {
+            return this.getSidenotesFiles();
+        }
+        return null;
+    }
+
+    getSidenotesFiles() {
+        const files = fs.readdirSync(this.sidenotesFolderPath);
+        return files
+            .filter(file => path.extname(file).toLowerCase() === '.md')
+            .map(file => {
+                const filePath = path.join(this.sidenotesFolderPath, file);
+                const displayName = path.basename(file, '.md');
+                return new SidenoteItem(displayName, filePath, vscode.TreeItemCollapsibleState.None);
+            });
+    }
+}
+
+class SidenoteItem extends vscode.TreeItem {
+    constructor(label, filePath, collapsibleState) {
+        super(label, collapsibleState);
+        this.tooltip = `${label}`;
+        this.description = '';
+        this.command = {
+            command: 'sidenotes.openFile',
+            title: 'Open File',
+            arguments: [filePath]
+        };
+    }
+}
+
 function deactivate() {}
 
 module.exports = {
-	activate,
-	deactivate
-}
+    activate,
+    deactivate
+};

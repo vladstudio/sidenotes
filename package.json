@@ -1,7 +1,7 @@
 {
   "name": "vladstudio-sidenotes",
   "displayName": "Sidenotes",
-  "description": "TBD",
+  "description": "A simple VSCode extension to manage and view notes",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.92.0"
@@ -9,13 +9,34 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:sidenotes-sidebar"
+  ],
   "main": "./extension.js",
   "contributes": {
-    "commands": [{
-      "command": "vladstudio-sidenotes.helloWorld",
-      "title": "Hello World"
-    }]
+    "commands": [
+      {
+        "command": "sidenotes.refreshSidebar",
+        "title": "Refresh Sidenotes"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sidenotes-sidebar",
+          "title": "Sidenotes",
+          "icon": "resources/sidenotes-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "sidenotes-sidebar": [
+        {
+          "id": "sidenotes-files",
+          "name": "Sidenotes Files"
+        }
+      ]
+    }
   },
   "scripts": {
     "lint": "eslint .",
