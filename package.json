@@ -154,5 +154,9 @@
     "typescript": "^5.4.5",
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/vladstudio/sidenotes.git"
   }
 }
