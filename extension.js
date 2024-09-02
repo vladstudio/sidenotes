@@ -128,7 +128,9 @@ async function createNewItem(itemType, sidenoteProvider, treeView) {
         await fs.promises.mkdir(newPath);
       }
       sidenoteProvider.refresh();
-      showNotification(`${capitalize(itemTypeName)} "${itemName}" created successfully.`);
+      showNotification(
+        `${capitalize(itemTypeName)} "${itemName}" created successfully.`
+      );
     } catch (err) {
       showNotification(
         `Failed to create ${itemTypeName}: ${err.message}`,
@@ -153,7 +155,9 @@ async function deleteItem(item, sidenoteProvider) {
   if (confirmDelete === "Yes") {
     try {
       await moveToTrash(itemPath);
-      showNotification(`"${capitalize(itemName)}" has been moved to the trash.`);
+      showNotification(
+        `"${capitalize(itemName)}" has been moved to the trash.`
+      );
       sidenoteProvider.refresh();
     } catch (err) {
       showNotification(
@@ -191,7 +195,9 @@ async function renameItem(item, sidenoteProvider) {
 
     try {
       await fs.promises.rename(oldPath, newPath);
-      showNotification(`"${capitalize(oldName)}" has been renamed to "${newName}".`);
+      showNotification(
+        `"${capitalize(oldName)}" has been renamed to "${newName}".`
+      );
 
       // Create a new item with the updated name and path
       const newItem = isFolder
