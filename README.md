@@ -1,19 +1,12 @@
 # Sidenotes
 
-Sidenotes is a simple VSCode extension to manage notes within any workspace, from an always accessible Activity Bar button. 
+Sidenotes is a simple VSCode extension that allows you to manage notes within any workspace. It is accessible anytime from an Activity Bar button.
 
 ## Features
 
-- Manage notes and folders in a dedicated sidebar
-- Quick search
+- Manage notes and folders in a sidebar
+- Quick search by name or content
 - Customize root folder for storing notes
-
-## Usage
-
-1. Open the Sidenotes sidebar in VSCode
-2. Use the sidebar buttons or context menu to create new notes or folders
-3. Click on a note to open it in the editor
-4. Use the quick search command to find notes quickly
 
 ## Requirements
 
