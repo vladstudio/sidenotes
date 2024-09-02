@@ -3,21 +3,38 @@ const fs = require("fs").promises;
 const path = require("path");
 const { promisify } = require("util");
 const { exec } = require("child_process");
+const { showNotification } = require("./showNotification");
 
 const execAsync = promisify(exec);
 
 let sidenotesFolderPath;
+let sidenoteProvider;
+
+function capitalize(s) {
+  return s[0].toUpperCase() + s.slice(1);
+}
 
 function activate(context) {
   console.log("Sidenotes extension is now active!");
 
-  // Create .sidenotes folder in user's home directory
-  const homeDir = process.env.HOME || process.env.USERPROFILE;
-  sidenotesFolderPath = path.join(homeDir, ".sidenotes");
-  fs.mkdir(sidenotesFolderPath, { recursive: true }).catch(console.error);
+  // Get the configuration
+  const config = vscode.workspace.getConfiguration("sidenotes");
+  const customRootFolder = config.get("rootFolder");
+
+  // Set sidenotesFolderPath based on the configuration
+  if (customRootFolder) {
+    sidenotesFolderPath = path.resolve(customRootFolder);
+  } else {
+    const homeDir = process.env.HOME || process.env.USERPROFILE;
+    sidenotesFolderPath = path.join(homeDir, ".sidenotes");
+  }
+
+  if (!fs.existsSync(sidenotesFolderPath)) {
+    fs.mkdirSync(sidenotesFolderPath, { recursive: true });
+  }
 
   // Register SidenotesProvider
-  const sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
+  sidenoteProvider = new SidenotesProvider(sidenotesFolderPath);
   const treeView = vscode.window.createTreeView("sidenotes-files", {
     treeDataProvider: sidenoteProvider,
     showCollapseAll: true,
@@ -32,12 +49,13 @@ function activate(context) {
   vscode.commands.registerCommand("sidenotes.openFile", (filePath) => {
     vscode.workspace.openTextDocument(filePath).then((doc) => {
       vscode.window.showTextDocument(doc);
+      selectFileInSidebar(filePath, treeView);
     });
   });
 
   // Register command to create new note
   vscode.commands.registerCommand("sidenotes.createNewNote", async () => {
-    await createNewItem("note", sidenoteProvider);
+    await createNewItem("note", sidenoteProvider, treeView);
   });
 
   // Register command to create new folder
@@ -65,7 +83,12 @@ function activate(context) {
     await quickSearch(sidenoteProvider, treeView);
   });
 
-  // Watch for changes in the .sidenotes folder
+  // Register command to open settings
+  vscode.commands.registerCommand("sidenotes.openSettings", () => {
+    openSettingsWithQuery("Sidenotes");
+  });
+
+  // Watch for changes in the sidenotes folder
   const watcher = fs.watch(
     sidenotesFolderPath,
     { recursive: true, persistent: false },
@@ -83,24 +106,11 @@ function activate(context) {
   });
 }
 
-// Helper function to show notifications with auto-closing
-function showNotification(message, type = "info") {
-  vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: message,
-      cancellable: false,
-    },
-    async (progress) => {
-      for (let i = 0; i < 40; i++) {
-        progress.report({ increment: 2.5 });
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-    }
-  );
+function openSettingsWithQuery(query) {
+  vscode.commands.executeCommand('workbench.action.openSettings', query);
 }
 
-async function createNewItem(itemType, sidenoteProvider) {
+async function createNewItem(itemType, sidenoteProvider, treeView) {
   const { targetFolder, parentFolderName } = getTargetFolder(sidenoteProvider);
   const itemTypeName = itemType === "note" ? "note" : "folder";
   const promptMessage = getPromptMessage(itemTypeName, parentFolderName);
@@ -121,11 +131,14 @@ async function createNewItem(itemType, sidenoteProvider) {
         await fs.writeFile(newPath, "");
         const doc = await vscode.workspace.openTextDocument(newPath);
         await vscode.window.showTextDocument(doc);
+        selectFileInSidebar(newPath, treeView);
       } else {
         await fs.mkdir(newPath);
       }
       sidenoteProvider.refresh();
-      showNotification(`${itemTypeName} "${itemName}" created successfully.`);
+      showNotification(
+        `${capitalize(itemTypeName)} "${itemName}" created successfully.`
+      );
     } catch (err) {
       showNotification(
         `Failed to create ${itemTypeName}: ${err.message}`,
@@ -141,7 +154,7 @@ async function deleteItem(item, sidenoteProvider) {
   const itemName = item.label;
 
   const confirmDelete = await vscode.window.showWarningMessage(
-    `Are you sure you want to delete "${itemName}"?`,
+    `Move "${itemName}" to the trash?`,
     { modal: true },
     "Yes",
     "No"
@@ -150,7 +163,9 @@ async function deleteItem(item, sidenoteProvider) {
   if (confirmDelete === "Yes") {
     try {
       await moveToTrash(itemPath);
-      showNotification(`"${itemName}" has been moved to the trash.`);
+      showNotification(
+        `"${capitalize(itemName)}" has been moved to the trash.`
+      );
       sidenoteProvider.refresh();
     } catch (err) {
       showNotification(
@@ -187,8 +202,10 @@ async function renameItem(item, sidenoteProvider) {
       : path.join(path.dirname(oldPath), `${newName}.md`);
 
     try {
-      await fs.rename(oldPath, newPath);
-      showNotification(`"${oldName}" has been renamed to "${newName}".`);
+      await fs.promises.rename(oldPath, newPath);
+      showNotification(
+        `"${capitalize(oldName)}" has been renamed to "${newName}".`
+      );
 
       // Create a new item with the updated name and path
       const newItem = isFolder
@@ -257,9 +274,7 @@ async function quickSearch(sidenoteProvider, treeView) {
         selectedItem.filePath
       );
       await vscode.window.showTextDocument(doc);
-
-      // Locate and select the file in the sidebar
-      await sidenoteProvider.selectFileInSidebar(selectedItem.filePath, treeView);
+      selectFileInSidebar(selectedItem.filePath, treeView);
     }
   });
 
@@ -346,6 +361,29 @@ function getPromptMessage(itemTypeName, parentFolderName) {
     : `Enter the name for the new ${itemTypeName}`;
 }
 
+async function selectFileInSidebar(filePath, treeView) {
+  const relativePath = path.relative(sidenotesFolderPath, filePath);
+  const pathParts = relativePath.split(path.sep);
+
+  let currentPath = sidenotesFolderPath;
+  for (const part of pathParts) {
+    currentPath = path.join(currentPath, part);
+    const element = await sidenoteProvider.findElementByPath(currentPath);
+    if (element) {
+      await treeView.reveal(element, { expand: true, select: false });
+    }
+  }
+
+  const fileElement = await sidenoteProvider.findElementByPath(filePath);
+  if (fileElement) {
+    await treeView.reveal(fileElement, {
+      expand: false,
+      select: true,
+      focus: true,
+    });
+  }
+}
+
 class SidenotesProvider {
   constructor(sidenotesFolderPath) {
     this.sidenotesFolderPath = sidenotesFolderPath;
@@ -429,31 +467,30 @@ class SidenotesProvider {
     return null;
   }
 
-  async selectFileInSidebar(filePath, treeView) {
-    const relativePath = path.relative(this.sidenotesFolderPath, filePath);
+  async findElementByPath(elementPath) {
+    const relativePath = path.relative(this.sidenotesFolderPath, elementPath);
     const pathParts = relativePath.split(path.sep);
+
+    let currentElement = null;
     let currentPath = this.sidenotesFolderPath;
-    
-    for (let i = 0; i < pathParts.length; i++) {
-      currentPath = path.join(currentPath, pathParts[i]);
-      const isLastPart = i === pathParts.length - 1;
-      
-      if (isLastPart) {
-        const item = new SidenoteItem(
-          path.basename(currentPath, ".md"),
-          currentPath,
-          vscode.TreeItemCollapsibleState.None
+
+    for (const part of pathParts) {
+      currentPath = path.join(currentPath, part);
+      const children = await this.getChildren(currentElement);
+      currentElement = children.find((child) => {
+        return (
+          (child instanceof SidenoteFolder
+            ? child.folderPath
+            : child.filePath) === currentPath
         );
-        await treeView.reveal(item, { select: true, focus: true, expand: true });
-      } else {
-        const folder = new SidenoteFolder(
-          pathParts[i],
-          currentPath,
-          vscode.TreeItemCollapsibleState.Expanded
-        );
-        await treeView.reveal(folder, { select: false, focus: false, expand: true });
+      });
+
+      if (!currentElement) {
+        return null;
       }
     }
+
+    return currentElement;
   }
 }
 

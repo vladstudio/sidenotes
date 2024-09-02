@@ -14,35 +14,57 @@
   ],
   "main": "./extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Sidenotes",
+      "properties": {
+        "sidenotes.rootFolder": {
+          "type": "string",
+          "default": null,
+          "description": "The root folder for storing notes. If not set, it defaults to '.sidenotes' in the user's home directory."
+        }
+      }
+    },
     "commands": [
       {
         "command": "sidenotes.refreshSidebar",
-        "title": "Sidenotes: Refresh Sidebar"
+        "title": "Refresh Sidebar",
+        "category": "Sidenotes"
       },
       {
         "command": "sidenotes.createNewNote",
-        "title": "Sidenotes: Create New Note",
+        "title": "Create New Note",
+        "category": "Sidenotes",
         "icon": "$(add)"
       },
       {
         "command": "sidenotes.createNewFolder",
-        "title": "Sidenotes: Create New Folder",
+        "title": "Create New Folder",
+        "category": "Sidenotes",
         "icon": "$(new-folder)"
       },
       {
         "command": "sidenotes.deleteItem",
-        "title": "Sidenotes: Delete Item",
+        "title": "Delete Item",
+        "category": "Sidenotes",
         "icon": "$(trash)"
       },
       {
         "command": "sidenotes.renameItem",
-        "title": "Sidenotes: Rename Item",
+        "title": "Rename Item",
+        "category": "Sidenotes",
         "icon": "$(edit)"
       },
       {
         "command": "sidenotes.quickSearch",
-        "title": "Sidenotes: Quick Search",
+        "title": "Quick Search",
+        "category": "Sidenotes",
         "icon": "$(search)"
+      },
+      {
+        "command": "sidenotes.openSettings",
+        "title": "Open Sidenotes Settings",
+        "category": "Sidenotes",
+        "icon": "$(gear)"
       }
     ],
     "keybindings": [
@@ -50,7 +72,19 @@
         "command": "sidenotes.createNewNote",
         "key": "ctrl+alt+n",
         "mac": "cmd+alt+n",
-        "when": "editorTextFocus"
+        "when": "sideBarVisible && activeViewlet == 'workbench.view.extension.sidenotes-sidebar'"
+      },
+      {
+        "command": "sidenotes.createNewFolder",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d",
+        "when": "sideBarVisible && activeViewlet == 'workbench.view.extension.sidenotes-sidebar'"
+      },
+      {
+        "command": "sidenotes.quickSearch",
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f",
+        "when": "sideBarVisible && activeViewlet == 'workbench.view.extension.sidenotes-sidebar'"
       }
     ],
     "viewsContainers": {
@@ -86,6 +120,11 @@
           "command": "sidenotes.quickSearch",
           "when": "view == sidenotes-files",
           "group": "navigation"
+        },
+        {
+          "command": "sidenotes.openSettings",
+          "when": "view == sidenotes-files",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -115,5 +154,9 @@
     "typescript": "^5.4.5",
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/vladstudio/sidenotes.git"
   }
 }
