@@ -59,6 +59,12 @@
         "title": "Quick Search",
         "category": "Sidenotes",
         "icon": "$(search)"
+      },
+      {
+        "command": "sidenotes.openSettings",
+        "title": "Open Sidenotes Settings",
+        "category": "Sidenotes",
+        "icon": "$(gear)"
       }
     ],
     "keybindings": [
@@ -112,6 +118,11 @@
         },
         {
           "command": "sidenotes.quickSearch",
+          "when": "view == sidenotes-files",
+          "group": "navigation"
+        },
+        {
+          "command": "sidenotes.openSettings",
           "when": "view == sidenotes-files",
           "group": "navigation"
         }

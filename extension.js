@@ -84,6 +84,11 @@ function activate(context) {
     await quickSearch(sidenoteProvider, treeView);
   });
 
+  // Register command to open settings
+  vscode.commands.registerCommand("sidenotes.openSettings", () => {
+    openSettingsWithQuery("Sidenotes");
+  });
+
   // Watch for changes in the sidenotes folder
   const watcher = fs.watch(
     sidenotesFolderPath,
@@ -100,6 +105,10 @@ function activate(context) {
   context.subscriptions.push({
     dispose: () => watcher.close(),
   });
+}
+
+function openSettingsWithQuery(query) {
+  vscode.commands.executeCommand('workbench.action.openSettings', query);
 }
 
 async function createNewItem(itemType, sidenoteProvider, treeView) {
@@ -146,7 +155,7 @@ async function deleteItem(item, sidenoteProvider) {
   const itemName = item.label;
 
   const confirmDelete = await vscode.window.showWarningMessage(
-    `Are you sure you want to delete "${itemName}"?`,
+    `Move "${itemName}" to the trash?`,
     { modal: true },
     "Yes",
     "No"
