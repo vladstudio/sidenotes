@@ -1,5 +1,6 @@
 const vscode = require("vscode");
-const fs = require("fs").promises;
+const fs = require("fs");
+const fsPromises = require("fs").promises;
 const path = require("path");
 const { promisify } = require("util");
 const { exec } = require("child_process");
@@ -128,12 +129,12 @@ async function createNewItem(itemType, sidenoteProvider, treeView) {
 
     try {
       if (itemType === "note") {
-        await fs.writeFile(newPath, "");
+        await fsPromises.writeFile(newPath, "");
         const doc = await vscode.workspace.openTextDocument(newPath);
         await vscode.window.showTextDocument(doc);
         selectFileInSidebar(newPath, treeView);
       } else {
-        await fs.mkdir(newPath);
+        await fsPromises.mkdir(newPath);
       }
       sidenoteProvider.refresh();
       showNotification(
@@ -202,7 +203,7 @@ async function renameItem(item, sidenoteProvider) {
       : path.join(path.dirname(oldPath), `${newName}.md`);
 
     try {
-      await fs.promises.rename(oldPath, newPath);
+      await fsPromises.rename(oldPath, newPath);
       showNotification(
         `"${capitalize(oldName)}" has been renamed to "${newName}".`
       );
@@ -290,7 +291,7 @@ async function searchNotes(searchTerm) {
     if (fileName.includes(searchTerm.toLowerCase())) {
       results.push({ filePath: file });
     } else {
-      const content = await fs.readFile(file, "utf-8");
+      const content = await fsPromises.readFile(file, "utf-8");
       if (content.toLowerCase().includes(searchTerm.toLowerCase())) {
         results.push({ filePath: file, description: `contains ${searchTerm}` });
       }
@@ -305,7 +306,7 @@ async function searchNotes(searchTerm) {
 }
 
 async function getAllMarkdownFiles(dir) {
-  const files = await fs.readdir(dir, { withFileTypes: true });
+  const files = await fsPromises.readdir(dir, { withFileTypes: true });
   const mdFiles = [];
 
   for (const file of files) {
@@ -410,7 +411,7 @@ class SidenotesProvider {
 
   async getSidenotesItems(folderPath) {
     const items = [];
-    const entries = await fs.readdir(folderPath, { withFileTypes: true });
+    const entries = await fsPromises.readdir(folderPath, { withFileTypes: true });
 
     // Add folders first
     for (const entry of entries) {
