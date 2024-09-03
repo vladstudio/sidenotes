@@ -10,6 +10,7 @@ const execAsync = promisify(exec);
 
 let sidenotesFolderPath;
 let sidenoteProvider;
+let configurationChangeListener;
 
 function capitalize(s) {
   return s[0].toUpperCase() + s.slice(1);
@@ -18,6 +19,16 @@ function capitalize(s) {
 function activate(context) {
   console.log("Sidenotes extension is now active!");
 
+  initializeExtension(context);
+
+  // Add configuration change listener
+  configurationChangeListener = vscode.workspace.onDidChangeConfiguration(
+    handleConfigurationChange
+  );
+  context.subscriptions.push(configurationChangeListener);
+}
+
+function initializeExtension(context) {
   // Get the configuration
   const config = vscode.workspace.getConfiguration("sidenotes");
   const customRootFolder = config.get("rootFolder");
@@ -105,6 +116,28 @@ function activate(context) {
   context.subscriptions.push({
     dispose: () => watcher.close(),
   });
+}
+
+function handleConfigurationChange(event) {
+  if (event.affectsConfiguration("sidenotes.rootFolder")) {
+    console.log("Root Folder setting changed. Restarting extension...");
+    restartExtension();
+  }
+}
+
+async function restartExtension() {
+  // Dispose of the current configuration change listener
+  if (configurationChangeListener) {
+    configurationChangeListener.dispose();
+  }
+
+  // Deactivate the current extension instance
+  await deactivate();
+
+  // Reactivate the extension
+  await activate(global.extensionContext);
+
+  showNotification("Sidenotes extension has been restarted due to Root Folder change.");
 }
 
 function openSettingsWithQuery(query) {
@@ -526,7 +559,12 @@ class SidenoteFolder extends vscode.TreeItem {
   }
 }
 
-function deactivate() {}
+function deactivate() {
+  // Dispose of any resources that need to be cleaned up
+  if (configurationChangeListener) {
+    configurationChangeListener.dispose();
+  }
+}
 
 module.exports = {
   activate,
