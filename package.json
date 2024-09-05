@@ -21,6 +21,11 @@
           "type": "string",
           "default": null,
           "description": "The root folder for storing notes. If not set, it defaults to '.sidenotes' in the user's home directory."
+        },
+        "sidenotes.showHiddenFiles": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show hidden files and folders (those starting with '.')."
         }
       }
     },
