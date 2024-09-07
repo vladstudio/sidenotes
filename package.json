@@ -3,6 +3,8 @@
   "displayName": "Sidenotes",
   "description": "A simple VSCode extension to manage and view notes",
   "version": "0.0.1",
+  "publisher": "Vladstudio",
+  "icon": "resources/sidenotes-icon.png",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -25,7 +27,7 @@
         "sidenotes.showHiddenFiles": {
           "type": "boolean",
           "default": false,
-          "description": "Show hidden files and folders (those starting with '.')."
+          "description": "Show hidden files and folders."
         }
       }
     },
