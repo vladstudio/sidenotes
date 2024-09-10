@@ -51,13 +51,13 @@
       },
       {
         "command": "sidenotes.deleteItem",
-        "title": "Delete Item",
+        "title": "Move to Trash",
         "category": "Sidenotes",
         "icon": "$(trash)"
       },
       {
         "command": "sidenotes.renameItem",
-        "title": "Rename Item",
+        "title": "Rename",
         "category": "Sidenotes",
         "icon": "$(edit)"
       },
@@ -72,6 +72,12 @@
         "title": "Open Sidenotes Settings",
         "category": "Sidenotes",
         "icon": "$(gear)"
+      },
+      {
+        "command": "sidenotes.revealInFileExplorer",
+        "title": "Reveal in File Explorer",
+        "category": "Sidenotes",
+        "icon": "$(folder-opened)"
       }
     ],
     "keybindings": [
@@ -136,14 +142,19 @@
       ],
       "view/item/context": [
         {
+          "command": "sidenotes.revealInFileExplorer",
+          "when": "view == sidenotes-files",
+          "group": "navigation@1"
+        },
+        {
           "command": "sidenotes.renameItem",
           "when": "view == sidenotes-files",
-          "group": "inline@1"
+          "group": "1_modification@2"
         },
         {
           "command": "sidenotes.deleteItem",
           "when": "view == sidenotes-files",
-          "group": "inline@2"
+          "group": "1_modification@3"
         }
       ]
     }

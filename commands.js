@@ -9,10 +9,11 @@ function initializeCommands(context, sidenoteProvider, treeView) {
     { name: 'sidenotes.createNewNote', handler: () => createNewItem('note', sidenoteProvider, treeView) },
     { name: 'sidenotes.createNewFolder', handler: () => createNewItem('folder', sidenoteProvider) },
     { name: 'sidenotes.selectItem', handler: (item) => sidenoteProvider.setSelectedItem(item) },
-    { name: 'sidenotes.deleteItem', handler: (item) => deleteItem(item, sidenoteProvider) },
     { name: 'sidenotes.renameItem', handler: (item) => renameItem(item, sidenoteProvider) },
+    { name: 'sidenotes.deleteItem', handler: (item) => deleteItem(item, sidenoteProvider) },
     { name: 'sidenotes.quickSearch', handler: () => quickSearch(sidenoteProvider, treeView) },
     { name: 'sidenotes.openSettings', handler: () => openSettingsWithQuery('Sidenotes') },
+    { name: 'sidenotes.revealInFileExplorer', handler: revealInFileExplorer },
   ];
 
   commands.forEach(({ name, handler }) => {
@@ -33,6 +34,15 @@ async function openFile(filePath) {
 
 function openSettingsWithQuery(query) {
   vscode.commands.executeCommand('workbench.action.openSettings', query);
+}
+
+function revealInFileExplorer(item) {
+  const itemPath = item.folderPath || item.filePath;
+  if (itemPath) {
+    vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(itemPath));
+  } else {
+    showNotification('Unable to reveal the item in file explorer.', 'error');
+  }
 }
 
 module.exports = { initializeCommands };
