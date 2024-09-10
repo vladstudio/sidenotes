@@ -9,6 +9,8 @@ class SidenotesProvider {
     this.showHiddenFiles = showHiddenFiles;
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    this._onDidChangeSelection = new vscode.EventEmitter();
+    this.onDidChangeSelection = this._onDidChangeSelection.event;
     this._selectedItem = null;
   }
 
@@ -53,7 +55,10 @@ class SidenotesProvider {
   }
 
   setSelectedItem(item) {
-    this._selectedItem = item;
+    if (this._selectedItem !== item) {
+      this._selectedItem = item;
+      this._onDidChangeSelection.fire(item);
+    }
   }
 
   getParent(element) {
@@ -91,6 +96,14 @@ class SidenotesProvider {
 
   updateShowHiddenFiles(showHiddenFiles) {
     this.showHiddenFiles = showHiddenFiles;
+  }
+
+  handleTreeSelectionChange(selection) {
+    if (selection && selection.length > 0) {
+      this.setSelectedItem(selection[0]);
+    } else {
+      this.setSelectedItem(null);
+    }
   }
 }
 

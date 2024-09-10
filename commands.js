@@ -23,7 +23,9 @@ function initializeCommands(context, sidenoteProvider, treeView) {
 async function openFile(filePath) {
   try {
     const doc = await vscode.workspace.openTextDocument(filePath);
-    await vscode.window.showTextDocument(doc);
+    await vscode.window.showTextDocument(doc, {
+      preview: false // This option ensures the document opens in non-preview mode
+    });
   } catch (error) {
     showNotification(`Failed to open file: ${error.message}`, 'error');
   }

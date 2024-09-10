@@ -28,6 +28,11 @@ async function initializeExtension(context) {
     showCollapseAll: true,
   });
 
+  // Register the selection change event listener
+  treeView.onDidChangeSelection(event => {
+    sidenoteProvider.handleTreeSelectionChange(event.selection);
+  });
+
   initializeCommands(context, sidenoteProvider, treeView);
 
   configurationChangeListener = vscode.workspace.onDidChangeConfiguration((e) => {
@@ -50,6 +55,12 @@ async function initializeExtension(context) {
   watcher.onDidDelete(() => sidenoteProvider.refresh());
 
   context.subscriptions.push(watcher);
+
+  // Subscribe to the onDidChangeSelection event
+  context.subscriptions.push(sidenoteProvider.onDidChangeSelection(item => {
+    console.log('Selected item changed:', item ? item.label : 'null');
+    // You can add any additional logic here that should run when the selection changes
+  }));
 }
 
 function deactivate() {
