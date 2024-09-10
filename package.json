@@ -2,7 +2,7 @@
   "name": "vladstudio-sidenotes",
   "displayName": "Sidenotes",
   "description": "A simple VSCode extension to manage and view notes",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "Vladstudio",
   "icon": "resources/sidenotes-icon.png",
   "engines": {
